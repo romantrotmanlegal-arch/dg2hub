@@ -1,0 +1,571 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HRP = Character:WaitForChild("HumanoidRootPart")
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    HRP = char:WaitForChild("HumanoidRootPart")
+end)
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "DG2_HUB_V2"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local NotifyContainer = Instance.new("Frame")
+NotifyContainer.Size = UDim2.new(0, 300, 1, 0)
+NotifyContainer.Position = UDim2.new(1, -310, 0, 10)
+NotifyContainer.BackgroundTransparency = 1
+NotifyContainer.Parent = gui
+
+local function Notify(title, msg, color)
+    local n = Instance.new("Frame")
+    n.Size = UDim2.new(1, 0, 0, 60)
+    n.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    n.BorderSizePixel = 0
+    n.Parent = NotifyContainer
+
+    local accent = Instance.new("Frame")
+    accent.Size = UDim2.new(0, 4, 1, 0)
+    accent.BackgroundColor3 = color or Color3.fromRGB(80, 120, 255)
+    accent.BorderSizePixel = 0
+    accent.Parent = n
+
+    local t = Instance.new("TextLabel")
+    t.Size = UDim2.new(1, -15, 0, 20)
+    t.Position = UDim2.new(0, 10, 0, 8)
+    t.BackgroundTransparency = 1
+    t.Text = title:upper()
+    t.TextColor3 = color or Color3.fromRGB(255, 255, 255)
+    t.Font = Enum.Font.GothamBold
+    t.TextSize = 13
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.Parent = n
+
+    local m = Instance.new("TextLabel")
+    m.Size = UDim2.new(1, -15, 0, 20)
+    m.Position = UDim2.new(0, 10, 0, 28)
+    m.BackgroundTransparency = 1
+    m.Text = msg
+    m.TextColor3 = Color3.fromRGB(200, 200, 200)
+    m.Font = Enum.Font.Gotham
+    m.TextSize = 12
+    m.TextXAlignment = Enum.TextXAlignment.Left
+    m.Parent = n
+
+    Instance.new("UICorner", n).CornerRadius = UDim.new(0, 6)
+    task.delay(5, function() n:Destroy() end)
+end
+
+local function Error(msg)
+    Notify("Execution Error", msg, Color3.fromRGB(255, 80, 80))
+    warn("DG2 HUB ERROR: " .. msg)
+end
+
+local function Try(fn, context)
+    local ok, result = pcall(fn)
+    if not ok then Error(context .. ": " .. tostring(result)) end
+end
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 550, 0, 350)
+main.Position = UDim2.new(0.5, -275, 0.5, -175)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 1
+stroke.Color = Color3.fromRGB(45, 45, 55)
+stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+stroke.Parent = main
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1, 0, 0, 40)
+top.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+top.BorderSizePixel = 0
+top.Parent = main
+Instance.new("UICorner", top).CornerRadius = UDim.new(0, 8)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 1, 0)
+title.Position = UDim2.new(0, 15, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "DG2 HUB | PRO"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0, 30, 0, 30)
+close.Position = UDim2.new(1, -35, 0, 5)
+close.Text = "×"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 20
+close.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+close.TextColor3 = Color3.fromRGB(255, 100, 100)
+close.Parent = top
+Instance.new("UICorner", close).CornerRadius = UDim.new(0, 6)
+
+close.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+local sidebar = Instance.new("Frame")
+sidebar.Size = UDim2.new(0, 140, 1, -40)
+sidebar.Position = UDim2.new(0, 0, 0, 40)
+sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+sidebar.BorderSizePixel = 0
+sidebar.Parent = main
+
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, -140, 1, -40)
+content.Position = UDim2.new(0, 140, 0, 40)
+content.BackgroundTransparency = 1
+content.Parent = main
+
+local pages = {}
+local function Page(name)
+    local f = Instance.new("ScrollingFrame")
+    f.Size = UDim2.new(1, 0, 1, 0)
+    f.BackgroundTransparency = 1
+    f.Visible = false
+    f.ScrollBarThickness = 4
+    f.CanvasSize = UDim2.new(0,0,1.5,0)
+    f.Parent = content
+    pages[name] = f
+    return f
+end
+
+local home = Page("Home")
+local crates = Page("Crates")
+local playerPage = Page("Player")
+local misc = Page("Misc")
+
+local function Switch(name)
+    for _, p in pairs(pages) do p.Visible = false end
+    if pages[name] then pages[name].Visible = true end
+end
+
+local function SideBtn(text, order, page)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -20, 0, 38)
+    b.Position = UDim2.new(0, 10, 0, (order - 1) * 45 + 15)
+    b.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+    b.Text = text
+    b.TextColor3 = Color3.fromRGB(200, 200, 200)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 12
+    b.Parent = sidebar
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    b.MouseButton1Click:Connect(function() Switch(page) end)
+end
+
+SideBtn("DASHBOARD", 1, "Home")
+SideBtn("AUTO FARM", 2, "Crates")
+SideBtn("PLAYER", 3, "Player")
+SideBtn("MISC", 4, "Misc")
+Switch("Home")
+
+local pfp = Instance.new("ImageLabel")
+pfp.Size = UDim2.new(0, 45, 0, 45)
+pfp.Position = UDim2.new(0, 20, 0, 20)
+pfp.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+pfp.Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+pfp.Parent = home
+Instance.new("UICorner", pfp).CornerRadius = UDim.new(1, 0)
+
+local welcome = Instance.new("TextLabel")
+welcome.Size = UDim2.new(1, -80, 0, 45)
+welcome.Position = UDim2.new(0, 75, 0, 20)
+welcome.BackgroundTransparency = 1
+welcome.Text = "Welcome, " .. LocalPlayer.DisplayName
+welcome.TextColor3 = Color3.fromRGB(255, 255, 255)
+welcome.Font = Enum.Font.GothamBold
+welcome.TextSize = 18
+welcome.TextXAlignment = Enum.TextXAlignment.Left
+welcome.Parent = home
+
+local statusBox = Instance.new("Frame")
+statusBox.Size = UDim2.new(1, -40, 0, 100)
+statusBox.Position = UDim2.new(0, 20, 0, 80)
+statusBox.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+statusBox.Parent = home
+Instance.new("UICorner", statusBox).CornerRadius = UDim.new(0, 8)
+
+local clock = Instance.new("TextLabel")
+clock.Size = UDim2.new(1, 0, 1, 0)
+clock.BackgroundTransparency = 1
+clock.Text = "00:00:00"
+clock.TextColor3 = Color3.fromRGB(150, 150, 180)
+clock.Font = Enum.Font.GothamMedium
+clock.TextSize = 24
+clock.Parent = statusBox
+
+task.spawn(function()
+    while gui.Parent do
+        clock.Text = os.date("%X")
+        task.wait(1)
+    end
+end)
+
+local function CreateToggle(parent, text, yPos, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -40, 0, 45)
+    container.Position = UDim2.new(0, 20, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+    container.Parent = parent
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.6, 0, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.Font = Enum.Font.GothamSemibold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 70, 0, 28)
+    btn.Position = UDim2.new(1, -85, 0.5, -14)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    btn.Text = "DISABLED"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 10
+    btn.Parent = container
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    local active = false
+    btn.MouseButton1Click:Connect(function()
+        active = not active
+        btn.Text = active and "ENABLED" or "DISABLED"
+        btn.BackgroundColor3 = active and Color3.fromRGB(40, 180, 100) or Color3.fromRGB(45, 45, 55)
+        callback(active)
+    end)
+    return container
+end
+
+local function CreateTextBox(parent, text, yPos, defaultText, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -40, 0, 45)
+    container.Position = UDim2.new(0, 20, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+    container.Parent = parent
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.6, 0, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.Font = Enum.Font.GothamSemibold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0, 70, 0, 28)
+    box.Position = UDim2.new(1, -85, 0.5, -14)
+    box.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    box.Text = defaultText
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.Font = Enum.Font.GothamBold
+    box.TextSize = 12
+    box.Parent = container
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+
+    box.FocusLost:Connect(function()
+        callback(box.Text)
+    end)
+end
+
+local function CreateMultiDropdown(parent, text, yPos, options, selectedTable, changeCallback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -40, 0, 45)
+    container.Position = UDim2.new(0, 20, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+    container.ClipsDescendants = false
+    container.ZIndex = 5
+    container.Parent = parent
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.5, 0, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.Font = Enum.Font.GothamSemibold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 5
+    label.Parent = container
+
+    local dropBtn = Instance.new("TextButton")
+    dropBtn.Size = UDim2.new(0, 120, 0, 28)
+    dropBtn.Position = UDim2.new(1, -135, 0.5, -14)
+    dropBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    dropBtn.Text = "Select Parts v"
+    dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropBtn.Font = Enum.Font.GothamBold
+    dropBtn.TextSize = 11
+    dropBtn.ZIndex = 6
+    dropBtn.Parent = container
+    Instance.new("UICorner", dropBtn).CornerRadius = UDim.new(0, 4)
+
+    local listLayout = Instance.new("Frame")
+    listLayout.Size = UDim2.new(1, 0, 0, #options * 30)
+    listLayout.Position = UDim2.new(0, 0, 1, 5)
+    listLayout.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    listLayout.Visible = false
+    listLayout.ZIndex = 10
+    listLayout.Parent = dropBtn
+    Instance.new("UICorner", listLayout).CornerRadius = UDim.new(0, 4)
+    
+    local strokeDrop = Instance.new("UIStroke")
+    strokeDrop.Color = Color3.fromRGB(55, 55, 65)
+    strokeDrop.Thickness = 1
+    strokeDrop.Parent = listLayout
+
+    for i, opt in ipairs(options) do
+        local optBtn = Instance.new("TextButton")
+        optBtn.Size = UDim2.new(1, 0, 0, 30)
+        optBtn.Position = UDim2.new(0, 0, 0, (i - 1) * 30)
+        optBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+        optBtn.BackgroundTransparency = 1
+        optBtn.Text = "  " .. opt
+        optBtn.TextColor3 = selectedTable[opt] and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(180, 180, 180)
+        optBtn.Font = Enum.Font.GothamMedium
+        optBtn.TextSize = 11
+        optBtn.TextXAlignment = Enum.TextXAlignment.Left
+        optBtn.ZIndex = 11
+        optBtn.Parent = listLayout
+
+        optBtn.MouseButton1Click:Connect(function()
+            selectedTable[opt] = not selectedTable[opt]
+            optBtn.TextColor3 = selectedTable[opt] and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(180, 180, 180)
+            if changeCallback then changeCallback() end
+        end)
+    end
+
+    dropBtn.MouseButton1Click:Connect(function()
+        listLayout.Visible = not listLayout.Visible
+    end)
+end
+
+local T1, T2, T3 = false, false, false
+local Busy = false
+
+CreateToggle(crates, "Auto Collect T1", 20, function(v) T1 = v end)
+CreateToggle(crates, "Auto Collect T2", 75, function(v) T2 = v end)
+CreateToggle(crates, "Auto Collect T3 (Bunker)", 130, function(v) T3 = v end)
+
+local HitboxEnabled = false
+local HitboxSize = 10
+local HitboxTargets = {
+    ["Head"] = false,
+    ["Torso"] = false,
+    ["Left Arm"] = false,
+    ["Right Arm"] = false,
+    ["Left Leg"] = false,
+    ["Right Leg"] = false
+}
+
+local OriginalSizes = {
+    ["Head"] = Vector3.new(2, 1, 1),
+    ["Torso"] = Vector3.new(2, 2, 1),
+    ["Left Arm"] = Vector3.new(1, 2, 1),
+    ["Right Arm"] = Vector3.new(1, 2, 1),
+    ["Left Leg"] = Vector3.new(1, 2, 1),
+    ["Right Leg"] = Vector3.new(1, 2, 1)
+}
+
+-- Reverts baseline attributes safely only when explicitly requested
+local function RevertHitboxes()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            pcall(function()
+                for partName, defaultSize in pairs(OriginalSizes) do
+                    local realPart = player.Character:FindFirstChild(partName)
+                    if realPart and realPart:IsA("BasePart") then
+                        realPart.Size = defaultSize
+                        realPart.Transparency = 0
+                        realPart.CanCollide = true
+                        realPart.Massless = false
+                    end
+                end
+            end)
+        end
+    end
+end
+
+CreateToggle(playerPage, "Hitbox Extender", 20, function(v) 
+    HitboxEnabled = v 
+    if not v then RevertHitboxes() end
+end)
+
+CreateTextBox(playerPage, "Hitbox Size", 75, "10", function(text) 
+    local num = tonumber(text)
+    if num then 
+        HitboxSize = num 
+    end
+end)
+
+CreateMultiDropdown(playerPage, "Target Parts", 130, {"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}, HitboxTargets, function()
+    if not HitboxEnabled then RevertHitboxes() end
+end)
+
+local function IsValidCrate(crate)
+    if not crate:IsA("Model") then return false end
+    local misc = crate:FindFirstChild("Misc")
+    if not misc or not misc:IsA("Model") then return false end
+    
+    for _, obj in ipairs(misc:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Transparency == 0 then
+            return true
+        end
+    end
+    return false
+end
+
+local function GetTeleportPart(crate)
+    for _, obj in ipairs(crate:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            return obj
+        end
+    end
+    return nil
+end
+
+local function UseNearbyPrompts()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            local parent = obj.Parent
+            if parent and parent:IsA("BasePart") then
+                local distance = (HRP.Position - parent.Position).Magnitude
+                if distance <= 15 then
+                    pcall(function()
+                        fireproximityprompt(obj)
+                    end)
+                    task.wait(0.15)
+                end
+            end
+        end
+    end
+end
+
+local function ProcessCrates(folderName, crateName, isToggleActive)
+    local cratesFolder = workspace:FindFirstChild("Crates")
+    local lootFolder = cratesFolder and cratesFolder:FindFirstChild("LootCrates")
+    local targetFolder = lootFolder and lootFolder:FindFirstChild(folderName)
+    if not targetFolder then return end
+
+    for _, crate in ipairs(targetFolder:GetChildren()) do
+        if not isToggleActive() then break end
+
+        if crate.Name == crateName and IsValidCrate(crate) then
+            local tpPart = GetTeleportPart(crate)
+            if tpPart and HRP then 
+                HRP.CFrame = tpPart.CFrame + Vector3.new(0, 3, 0) 
+                task.wait(0.4)
+                UseNearbyPrompts()
+                task.wait(0.5)
+            end
+        end
+    end
+end
+
+local function ProcessBunker()
+    local bunker = workspace:FindFirstChild("Bunker")
+    local cratesFolder = bunker and bunker:FindFirstChild("BunkerCrates")
+    if not cratesFolder then return end
+
+    for _, crate in ipairs(cratesFolder:GetChildren()) do
+        if not T3 then break end
+
+        if crate.Name == "T3Crate" and IsValidCrate(crate) then
+            local tpPart = GetTeleportPart(crate)
+            if tpPart and HRP then 
+                HRP.CFrame = tpPart.CFrame + Vector3.new(0, 3, 0) 
+                task.wait(0.4)
+                UseNearbyPrompts()
+                task.wait(0.5)
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if not Busy then
+            Busy = true
+            Try(function()
+                if T1 then ProcessCrates("T1", "T1Crate", function() return T1 end) end
+                if T2 then ProcessCrates("T2", "T2Crate", function() return T2 end) end
+                if T3 then ProcessBunker() end
+            end, "Farm Loop")
+            Busy = false
+        end
+    end
+end)
+
+-- Heartbeat frame logic optimized to avoid setting property signals on unselected targets continuously
+RunService.Heartbeat:Connect(function()
+    if not HitboxEnabled then return end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            pcall(function()
+                for partName, isTargeted in pairs(HitboxTargets) do
+                    local realPart = player.Character:FindFirstChild(partName)
+                    if realPart and realPart:IsA("BasePart") then
+                        if isTargeted then
+                            -- Only updates properties when boundaries drift from criteria dimensions
+                            if realPart.Size.X ~= HitboxSize or realPart.Transparency ~= 0.55 then
+                                realPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                                realPart.Transparency = 0.55
+                                realPart.Color = Color3.fromRGB(255, 50, 50)
+                                realPart.CanCollide = false
+                                realPart.Massless = true
+                            end
+                        else
+                            -- Reverts individually unselected components safely
+                            local defaultSize = OriginalSizes[partName]
+                            if realPart.Size.X ~= defaultSize.X or realPart.Transparency ~= 0 then
+                                realPart.Size = defaultSize
+                                realPart.Transparency = 0
+                                realPart.CanCollide = true
+                                realPart.Massless = false
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+local info = Instance.new("TextLabel")
+info.Size = UDim2.new(1, -40, 0, 100)
+info.Position = UDim2.new(0, 20, 0, 20)
+info.BackgroundTransparency = 1
+info.Text = "DG2 HUB PRO\nVersion: 2.1.2\nStatus: Online"
+info.TextColor3 = Color3.fromRGB(120, 120, 130)
+info.Font = Enum.Font.Gotham
+info.TextSize = 14
+info.Parent = misc
+
+Notify("Hub Loaded", "Welcome back, " .. LocalPlayer.Name, Color3.fromRGB(100, 255, 100))

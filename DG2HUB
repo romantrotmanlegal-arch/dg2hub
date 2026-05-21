@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -147,6 +148,7 @@ end
 local home = Page("Home")
 local crates = Page("Crates")
 local playerPage = Page("Player")
+local weaponPage = Page("Weapon")
 local misc = Page("Misc")
 
 local function Switch(name)
@@ -156,13 +158,13 @@ end
 
 local function SideBtn(text, order, page)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -20, 0, 38)
-    b.Position = UDim2.new(0, 10, 0, (order - 1) * 45 + 15)
+    b.Size = UDim2.new(1, -20, 0, 34)
+    b.Position = UDim2.new(0, 10, 0, (order - 1) * 40 + 15)
     b.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
     b.Text = text
     b.TextColor3 = Color3.fromRGB(200, 200, 200)
     b.Font = Enum.Font.GothamBold
-    b.TextSize = 12
+    b.TextSize = 11
     b.Parent = sidebar
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
     b.MouseButton1Click:Connect(function() Switch(page) end)
@@ -171,7 +173,8 @@ end
 SideBtn("DASHBOARD", 1, "Home")
 SideBtn("AUTO FARM", 2, "Crates")
 SideBtn("PLAYER", 3, "Player")
-SideBtn("MISC", 4, "Misc")
+SideBtn("WEAPON", 4, "Weapon")
+SideBtn("MISC", 5, "Misc")
 Switch("Home")
 
 local pfp = Instance.new("ImageLabel")
@@ -201,7 +204,8 @@ statusBox.Parent = home
 Instance.new("UICorner", statusBox).CornerRadius = UDim.new(0, 8)
 
 local clock = Instance.new("TextLabel")
-clock.Size = UDim2.new(1, 0, 1, 0)
+clock.Size = UDim2.new(1, 0, 0, 40)
+clock.Position = UDim2.new(0, 0, 0, 10)
 clock.BackgroundTransparency = 1
 clock.Text = "00:00:00"
 clock.TextColor3 = Color3.fromRGB(150, 150, 180)
@@ -209,12 +213,81 @@ clock.Font = Enum.Font.GothamMedium
 clock.TextSize = 24
 clock.Parent = statusBox
 
+local adminStatusLabel = Instance.new("TextLabel")
+adminStatusLabel.Size = UDim2.new(1, -20, 0, 35)
+adminStatusLabel.Position = UDim2.new(0, 10, 0, 55)
+adminStatusLabel.BackgroundTransparency = 1
+adminStatusLabel.Text = "Checking Server Status..."
+adminStatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+adminStatusLabel.Font = Enum.Font.GothamBold
+adminStatusLabel.TextSize = 12
+adminStatusLabel.TextWrapped = true
+adminStatusLabel.Parent = statusBox
+
 task.spawn(function()
     while gui.Parent do
         clock.Text = os.date("%X")
         task.wait(1)
     end
 end)
+
+-- --- ADMIN DETECTION SETUP ---
+local activeAdmins = {}
+
+local function UpdateDashboardStatus()
+    local count = 0
+    local lastAdminName = ""
+    for name, _ in pairs(activeAdmins) do
+        count = count + 1
+        lastAdminName = name
+    end
+    
+    if count == 0 then
+        adminStatusLabel.Text = "🛡️ NO ADMINS IN GAME — YOU'RE GOOD"
+        adminStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    elseif count == 1 then
+        adminStatusLabel.Text = "⚠️ WARNING: 1 ADMIN ON (" .. lastAdminName .. ") — LEAVE TO AVOID GETTING CAUGHT!"
+        adminStatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+    else
+        adminStatusLabel.Text = "🚨 CRITICAL: " .. count .. " ADMINS ON — LEAVE SVR IMMEDIATELY!"
+        adminStatusLabel.TextColor3 = Color3.fromRGB(255, 40, 40)
+    end
+end
+
+local function CheckForAdmin(player)
+    if player == LocalPlayer then return end
+    
+    local modules = ReplicatedStorage:FindFirstChild("Modules")
+    local cmdrConfigOpt = modules and modules:FindFirstChild("CmdrConfig")
+    
+    if cmdrConfigOpt and cmdrConfigOpt:IsA("ModuleScript") then
+        local success, config = pcall(require, cmdrConfigOpt)
+        if success and config and config.Admins then
+            if table.find(config.Admins, player.Name) then
+                activeAdmins[player.Name] = true
+                UpdateDashboardStatus()
+                Notify("ADMIN DETECTED", player.Name .. " is in the server!", Color3.fromRGB(255, 80, 80))
+            end
+        end
+    end
+end
+
+local function RemoveAdmin(player)
+    if activeAdmins[player.Name] then
+        activeAdmins[player.Name] = nil
+        UpdateDashboardStatus()
+        Notify("ADMIN LEFT", player.Name .. " has left the server.", Color3.fromRGB(100, 150, 255))
+    end
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    CheckForAdmin(player)
+end
+UpdateDashboardStatus()
+
+Players.PlayerAdded:Connect(CheckForAdmin)
+Players.PlayerRemoving:Connect(RemoveAdmin)
+-- -----------------------------
 
 local function CreateToggle(parent, text, yPos, callback)
     local container = Instance.new("Frame")
@@ -365,12 +438,194 @@ local function CreateMultiDropdown(parent, text, yPos, options, selectedTable, c
     end)
 end
 
+local function CreateSingleDropdown(parent, text, yPos, options, defaultVal, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -40, 0, 45)
+    container.Position = UDim2.new(0, 20, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+    container.ClipsDescendants = false
+    container.ZIndex = 7
+    container.Parent = parent
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.5, 0, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.Font = Enum.Font.GothamSemibold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 7
+    label.Parent = container
+
+    local dropBtn = Instance.new("TextButton")
+    dropBtn.Size = UDim2.new(0, 140, 0, 28)
+    dropBtn.Position = UDim2.new(1, -155, 0.5, -14)
+    dropBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    dropBtn.Text = (defaultVal or "None") .. " v"
+    dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropBtn.Font = Enum.Font.GothamBold
+    dropBtn.TextSize = 11
+    dropBtn.ZIndex = 8
+    dropBtn.Parent = container
+    Instance.new("UICorner", dropBtn).CornerRadius = UDim.new(0, 4)
+
+    local listLayout = Instance.new("ScrollingFrame")
+    listLayout.Size = UDim2.new(1, 0, 0, math.min(#options * 30, 120))
+    listLayout.Position = UDim2.new(0, 0, 1, 5)
+    listLayout.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    listLayout.Visible = false
+    listLayout.ZIndex = 12
+    listLayout.ScrollBarThickness = 4
+    listLayout.CanvasSize = UDim2.new(0, 0, 0, #options * 30)
+    listLayout.Parent = dropBtn
+    Instance.new("UICorner", listLayout).CornerRadius = UDim.new(0, 4)
+    
+    local strokeDrop = Instance.new("UIStroke")
+    strokeDrop.Color = Color3.fromRGB(55, 55, 65)
+    strokeDrop.Thickness = 1
+    strokeDrop.Parent = listLayout
+
+    for i, opt in ipairs(options) do
+        local optBtn = Instance.new("TextButton")
+        optBtn.Size = UDim2.new(1, -4, 0, 30)
+        optBtn.Position = UDim2.new(0, 0, 0, (i - 1) * 30)
+        optBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+        optBtn.BackgroundTransparency = 1
+        optBtn.Text = "  " .. opt
+        optBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+        optBtn.Font = Enum.Font.GothamMedium
+        optBtn.TextSize = 11
+        optBtn.TextXAlignment = Enum.TextXAlignment.Left
+        optBtn.ZIndex = 13
+        optBtn.Parent = listLayout
+
+        optBtn.MouseButton1Click:Connect(function()
+            dropBtn.Text = opt .. " v"
+            listLayout.Visible = false
+            callback(opt)
+        end)
+    end
+
+    dropBtn.MouseButton1Click:Connect(function()
+        listLayout.Visible = not listLayout.Visible
+    end)
+end
+
+local function CreateButton(parent, text, yPos, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -40, 0, 45)
+    container.Position = UDim2.new(0, 20, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+    container.Parent = parent
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.6, 0, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.Font = Enum.Font.GothamSemibold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 90, 0, 28)
+    btn.Position = UDim2.new(1, -105, 0.5, -14)
+    btn.BackgroundColor3 = Color3.fromRGB(80, 120, 255)
+    btn.Text = "EXECUTE"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 10
+    btn.Parent = container
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    btn.MouseButton1Click:Connect(callback)
+    return container
+end
+
 local T1, T2, T3 = false, false, false
+local GrenadeFarmActive = false
+local SelectedWeapon = ""
 local Busy = false
 
+-- --- SINGLE-EXECUTION WEAPON TP LOGIC ---
+local function ExecuteWeaponTp()
+    if SelectedWeapon == "" then 
+        return Notify("Weapon TP", "No weapon selected in the dropdown!", Color3.fromRGB(255, 80, 80)) 
+    end
+    
+    local cratesFolder = workspace:FindFirstChild("Crates")
+    local weaponCrates = cratesFolder and cratesFolder:FindFirstChild("WeaponCrates")
+    local targetWeaponFolder = weaponCrates and weaponCrates:FindFirstChild(SelectedWeapon)
+    if not targetWeaponFolder then 
+        return Error("Target weapon folder not found inside workspace!") 
+    end
+
+    local validCrateFound = false
+
+    for _, weaponModel in ipairs(targetWeaponFolder:GetChildren()) do
+        if weaponModel:IsA("Model") then
+            local giver = weaponModel:FindFirstChild("Giver")
+            local stockObj = giver and giver:FindFirstChild("Stock")
+            local prompt = giver and giver:FindFirstChildOfClass("ProximityPrompt")
+
+            if giver and stockObj and stockObj:IsA("ValueBase") and stockObj.Value > 0 and prompt and HRP then
+                validCrateFound = true
+                local oldCFrame = HRP.CFrame
+                
+                Notify("Weapon TP", "Teleporting to stocked " .. SelectedWeapon .. " crate...", Color3.fromRGB(80, 255, 120))
+                HRP.CFrame = giver.CFrame + Vector3.new(0, 3, 0)
+                task.wait(0.4)
+                
+                pcall(function() fireproximityprompt(prompt) end)
+                task.wait(0.4)
+                
+                HRP.CFrame = oldCFrame
+                Notify("Weapon TP", "Returned safely!", Color3.fromRGB(80, 120, 255))
+                break
+            end
+        end
+    end
+
+    if not validCrateFound then
+        Notify("Weapon TP", "All crates for " .. SelectedWeapon .. " are currently out of stock!", Color3.fromRGB(255, 150, 50))
+    end
+end
+
+-- --- AUTO FARM TAB LAYOUT ---
 CreateToggle(crates, "Auto Collect T1", 20, function(v) T1 = v end)
 CreateToggle(crates, "Auto Collect T2", 75, function(v) T2 = v end)
 CreateToggle(crates, "Auto Collect T3 (Bunker)", 130, function(v) T3 = v end)
+CreateToggle(crates, "Auto Grenade Farm", 185, function(v) GrenadeFarmActive = v end)
+
+-- Gather all folders dynamically inside WeaponCrates, excluding WeaponCratesHandler
+local weaponOptions = {}
+local cratesFolderCheck = workspace:FindFirstChild("Crates")
+local weaponCratesCheck = cratesFolderCheck and cratesFolderCheck:FindFirstChild("WeaponCrates")
+if weaponCratesCheck then
+    for _, folder in ipairs(weaponCratesCheck:GetChildren()) do
+        if folder:IsA("Folder") and folder.Name ~= "WeaponCratesHandler" then
+            table.insert(weaponOptions, folder.Name)
+        end
+    end
+end
+table.sort(weaponOptions)
+
+if #weaponOptions > 0 then SelectedWeapon = weaponOptions[1] end
+
+-- Corrected label to capitalized "Weapon TP" placed exactly above dropdown menu
+CreateButton(crates, "Weapon TP", 240, function()
+    Try(ExecuteWeaponTp, "Single Weapon TP execution")
+end)
+
+CreateSingleDropdown(crates, "Weapon TP Target", 295, weaponOptions, SelectedWeapon, function(choice)
+    SelectedWeapon = choice
+end)
 
 local HitboxEnabled = false
 local HitboxSize = 10
@@ -392,7 +647,6 @@ local OriginalSizes = {
     ["Right Leg"] = Vector3.new(1, 2, 1)
 }
 
--- Reverts baseline attributes safely only when explicitly requested
 local function RevertHitboxes()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -418,14 +672,88 @@ end)
 
 CreateTextBox(playerPage, "Hitbox Size", 75, "10", function(text) 
     local num = tonumber(text)
-    if num then 
-        HitboxSize = num 
-    end
+    if num then HitboxSize = num end
 end)
 
 CreateMultiDropdown(playerPage, "Target Parts", 130, {"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}, HitboxTargets, function()
     if not HitboxEnabled then RevertHitboxes() end
 end)
+
+-- --- WEAPON TAB SELECTION ---
+local function RefillAmmoAction()
+    if not HRP then return Error("HumanoidRootPart missing") end
+    
+    local ammoCratesFolder = workspace:FindFirstChild("Crates") and workspace.Crates:FindFirstChild("AmmoCrates")
+    if not ammoCratesFolder then return Error("AmmoCrates folder not found in workspace!") end
+    
+    local targetGiver = nil
+    local targetPrompt = nil
+    
+    for _, box in ipairs(ammoCratesFolder:GetChildren()) do
+        if box.Name == "AMMOBox" then
+            local giver = box:FindFirstChild("Giver")
+            local stockObj = giver and giver:FindFirstChild("Stock")
+            local prompt = giver and giver:FindFirstChildOfClass("ProximityPrompt")
+            
+            if giver and stockObj and prompt and stockObj.Value > 0 then
+                targetGiver = giver
+                targetPrompt = prompt
+                break
+            end
+        end
+    end
+    
+    if targetGiver and targetPrompt then
+        local oldCFrame = HRP.CFrame
+        Notify("Ammo Refill", "Teleporting to AMMOBox...", Color3.fromRGB(80, 255, 120))
+         
+        HRP.CFrame = targetGiver.CFrame + Vector3.new(0, 3, 0)
+        task.wait(0.35)
+        
+        pcall(function() fireproximityprompt(targetPrompt) end)
+        task.wait(0.4)
+        
+        HRP.CFrame = oldCFrame
+        Notify("Ammo Refill", "Returned safely!", Color3.fromRGB(80, 120, 255))
+    else
+        Error("No filled AMMOBoxes found nearby!")
+    end
+end
+
+CreateButton(weaponPage, "Refill Weapon Ammo", 20, function()
+    Try(RefillAmmoAction, "Refill Ammo Loop")
+end)
+
+-- --- BACKGROUND FARM LOOP FOR GRENADES ---
+local function ProcessGrenades()
+    local cratesFolder = workspace:FindFirstChild("Crates")
+    local weaponCrates = cratesFolder and cratesFolder:FindFirstChild("WeaponCrates")
+    local grenadeFolder = weaponCrates and weaponCrates:FindFirstChild("GRENADE")
+    if not grenadeFolder then return end
+
+    for _, box in ipairs(grenadeFolder:GetChildren()) do
+        if not GrenadeFarmActive then break end
+
+        if box.Name == "GRENADEBox" then
+            local giver = box:FindFirstChild("Giver")
+            local stockObj = giver and giver:FindFirstChild("Stock")
+            local prompt = giver and giver:FindFirstChildOfClass("ProximityPrompt")
+
+            if giver and stockObj and prompt and stockObj.Value > 0 and HRP then
+                local oldCFrame = HRP.CFrame
+                
+                HRP.CFrame = giver.CFrame + Vector3.new(0, 3, 0)
+                task.wait(0.4)
+                
+                pcall(function() fireproximityprompt(prompt) end)
+                task.wait(0.4)
+                
+                HRP.CFrame = oldCFrame
+                task.wait(0.5)
+            end
+        end
+    end
+end
 
 local function IsValidCrate(crate)
     if not crate:IsA("Model") then return false end
@@ -442,9 +770,7 @@ end
 
 local function GetTeleportPart(crate)
     for _, obj in ipairs(crate:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            return obj
-        end
+        if obj:IsA("BasePart") then return obj end
     end
     return nil
 end
@@ -456,9 +782,7 @@ local function UseNearbyPrompts()
             if parent and parent:IsA("BasePart") then
                 local distance = (HRP.Position - parent.Position).Magnitude
                 if distance <= 15 then
-                    pcall(function()
-                        fireproximityprompt(obj)
-                    end)
+                    pcall(function() fireproximityprompt(obj) end)
                     task.wait(0.15)
                 end
             end
@@ -512,17 +836,18 @@ task.spawn(function()
         task.wait(0.2)
         if not Busy then
             Busy = true
+            
             Try(function()
                 if T1 then ProcessCrates("T1", "T1Crate", function() return T1 end) end
                 if T2 then ProcessCrates("T2", "T2Crate", function() return T2 end) end
                 if T3 then ProcessBunker() end
+                if GrenadeFarmActive then ProcessGrenades() end
             end, "Farm Loop")
             Busy = false
         end
     end
 end)
 
--- Heartbeat frame logic optimized to avoid setting property signals on unselected targets continuously
 RunService.Heartbeat:Connect(function()
     if not HitboxEnabled then return end
     
@@ -533,7 +858,6 @@ RunService.Heartbeat:Connect(function()
                     local realPart = player.Character:FindFirstChild(partName)
                     if realPart and realPart:IsA("BasePart") then
                         if isTargeted then
-                            -- Only updates properties when boundaries drift from criteria dimensions
                             if realPart.Size.X ~= HitboxSize or realPart.Transparency ~= 0.55 then
                                 realPart.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
                                 realPart.Transparency = 0.55
@@ -542,7 +866,6 @@ RunService.Heartbeat:Connect(function()
                                 realPart.Massless = true
                             end
                         else
-                            -- Reverts individually unselected components safely
                             local defaultSize = OriginalSizes[partName]
                             if realPart.Size.X ~= defaultSize.X or realPart.Transparency ~= 0 then
                                 realPart.Size = defaultSize
@@ -562,7 +885,7 @@ local info = Instance.new("TextLabel")
 info.Size = UDim2.new(1, -40, 0, 100)
 info.Position = UDim2.new(0, 20, 0, 20)
 info.BackgroundTransparency = 1
-info.Text = "DG2 HUB PRO\nVersion: 2.1.2\nStatus: Online"
+info.Text = "DG2 HUB PRO\nVersion: 2.3.0\nStatus: Online"
 info.TextColor3 = Color3.fromRGB(120, 120, 130)
 info.Font = Enum.Font.Gotham
 info.TextSize = 14
